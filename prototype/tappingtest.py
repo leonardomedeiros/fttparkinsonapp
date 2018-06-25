@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 def get_angle(points):
-    p1_abs,p2_abs,ref = points
+    center, p1_abs,p2_abs = points
     
     p1 = []
     p2 = []
@@ -55,11 +55,34 @@ def get_angle2(points):
     return math.degrees(angle2)     
 
 def draw_lines(points):
-    for i in range(0, len(points)-1):
-        point1 = points[i]
-        point2 = points[i+1]
-        cv2.line(frame, (point1[0], point1[1]), (point2[0], point2[1]), (255,127,0), 5)                 
+    centerPoint = points[0]; 
+    for i in range(1, len(points)):
+        point = points[i]
+        cv2.line(frame, (centerPoint[0], centerPoint[1]), (point[0], point[1]), (255,127,0), 5)                 
     return;
+
+def sort_contours(cnts, method="left-to-right"):
+    # initialize the reverse flag and sort index
+    reverse = False
+    i = 0
+
+    # handle if we need to sort in reverse
+    if method == "right-to-left" or method == "bottom-to-top":
+        reverse = True
+
+    # handle if we are sorting against the y-coordinate rather than
+    # the x-coordinate of the bounding box
+    if method == "top-to-bottom" or method == "bottom-to-top":
+        i = 1
+
+    # construct the list of bounding boxes and sort them from top to
+    # bottom
+    boundingBoxes = [cv2.boundingRect(c) for c in cnts]
+    (cnts, boundingBoxes) = zip(*sorted(zip(cnts, boundingBoxes),
+        key=lambda b:b[1][i], reverse=reverse))
+
+    # return the list of sorted contours and bounding boxes
+    return (cnts, boundingBoxes)
 
 print("Finger Tapping Test")
 #------------------
@@ -129,16 +152,17 @@ while (cap.isOpened()):
     #  _, contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     _,contours, _ = cv2.findContours(maskFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     #organizando os contornos de maior area para menor
-    sorted_contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    #sorted_contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    sorted_contours, boundBoxes = sort_contours(contours)
     # Create empty centre array to store centroid center of mass
     center =   int(Height/2), int(Width/2)
 
-    if len(contours) > 0:
+    if len(sorted_contours) > 0:
       
         # Get the largest contour and its center 
         #c = max(contours, key=cv2.contourArea)
         #iterando sobre cada cotorno
-        for c in contours:  
+        for c in sorted_contours:  
             (x, y), radius = cv2.minEnclosingCircle(c)
             M = cv2.moments(c)
             try:
@@ -163,7 +187,7 @@ while (cap.isOpened()):
     #cv2.rectangle(frame, point_left_top_rec, point_bottom_right_rec, (127,50,127), 2)
     #cv2.putText(frame, text, (50,50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
     if len(points) == 3:    
-        angle = get_angle(points)
+        angle = get_angle2(points)
         cv2.putText(frame, "Angulo:"+str(angle), (70,80), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 1)   
         y_axes.append(int(angle))
        
